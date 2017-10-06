@@ -1,0 +1,324 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src * data: gap: content: https://ssl.gstatic.com; style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'">
+    <script src="components/loader.js"></script>
+    <link rel="stylesheet" href="components/loader.css">
+    <link rel="stylesheet" href="css/style.css">
+    <script type="text/javascript"
+      src="http://maps.googleapis.com/maps/api/js?key=AIzaSyD2JukbnTIPpisApchgAt4EVW49ndIdqDs">
+    </script>
+    <script>
+     //都道府県のリストをセットするfunction
+    function set_pref_list(){
+        $.ajax({
+            url: 'http://javascriptajax.azurewebsites.net/ikeda/get_pref.php?',
+            type:'GET',
+            dataType:'json'
+                
+        }).done(function(data){ //ajaxの通信に成功した場合
+
+            //連想配列の長さを得る Object.keysメソッド
+            var pref_length = Object.keys(data.pref).length;
+
+            for(var i=0; i<pref_length; i++){
+                $('#pref').append("<option area_code='" + data.pref[i].area_code + "' pref_code='" + data.pref[i].pref_code + "'>" + data.pref[i].pref_name   + "</option>")
+            }
+
+        }).fail(function(data){ //ajaxの通信に失敗した場合
+            alert("データの受信に失敗しました");
+        });
+
+    }
+
+    //エリアMのリストをセットするfunction
+    function set_area_list(){
+        $.ajax({
+            url: 'http://javascriptajax.azurewebsites.net/ikeda/get_area.php?',
+            type:'GET',
+            dataType:'json'
+                
+        }).done(function(data){ //ajaxの通信に成功した場合
+
+            //取得したデータからフィルタリングをかける
+            //選択された都道府県の状況によってフィルタリングする
+            var pref_code=$('#pref').find('option:selected').attr('pref_code');
+            var filterdata=[];
+
+            filterdata = $.grep(data.garea_middle,function(item){
+                            return item.pref.pref_code==pref_code;
+                        });
+
+
+            //連想配列の長さを得る Object.keysメソッド
+            var area_length = Object.keys(filterdata).length;
+
+            $('#area_m').html("");
+            for(var i=0; i<area_length; i++){
+                $('#area_m').append("<option areacode_m='" + filterdata[i].areacode_m + "'>" + filterdata[i].areaname_m   + "</option>")
+            }
+
+        }).fail(function(data){ //ajaxの通信に失敗した場合
+        	alert("データの受信に失敗しました");
+        });
+
+    }
+
+
+    //業態（カテゴリL)のリストをセットするfunction
+    function set_category_l_list(){
+            $.ajax({
+            url: 'http://javascriptajax.azurewebsites.net/ikeda/get_category_l.php?',
+            type:'GET',
+            dataType:'json'
+                
+        }).done(function(data){ //ajaxの通信に成功した場合
+
+            //連想配列の長さを得る Object.keysメソッド
+            var category_l_length = Object.keys(data.category_l).length;
+
+            for(var i=0; i<category_l_length; i++){
+                $('#category_l').append("<option category_l_code='" + data.category_l[i].category_l_code + "'>" + data.category_l[i].category_l_name   + "</option>")
+
+            }
+
+        }).fail(function(data){ //ajaxの通信に失敗した場合
+            alert("データの受信に失敗しました");
+        });
+
+    }
+
+    function search_restrant(pref_code, areacode_m, category_l_code){
+        //条件に一致するレストランの件数を検索する
+        $.ajax({
+            url: 'http://javascriptajax.azurewebsites.net/ikeda/get_restrant.php?pref=' + pref_code + '&areacode_m=' +  areacode_m + '&category_l=' + category_l_code,
+            type:'GET',
+            dataType:'json'
+                
+        }).done(function(data){ //ajaxの通信に成功した場合
+
+            //必要なページ数分、レストラン検索を行う
+            var total_hit_count = data.total_hit_count;
+            var hit_per_page = data.hit_per_page;
+            var total_page = Math.ceil(total_hit_count/hit_per_page);
+
+            $('#kekka').html("<tr><td>店舗名</td><td>住所</td><td>電話番号</td><td>最寄り駅からの距離</td></tr>");
+            for(var i = 1; i <= total_page; i++ ){
+                search_restrant_page(pref_code, areacode_m, category_l_code, i);
+            }
+
+        }).fail(function(data){ //ajaxの通信に失敗した場合
+            alert("データの受信に失敗しました");
+        });
+    }
+
+    function search_restrant_page(pref_code, areacode_m, category_l_code, offset_page){
+        $.ajax({
+            url: 'http://javascriptajax.azurewebsites.net/ikeda/get_restrant_page.php?pref=' + pref_code +  '&areacode_m=' + areacode_m +  '&category_l=' + category_l_code + '&offset_page=' + offset_page,
+            type:'GET',
+            dataType:'json'
+                
+        }).done(function(data){ //ajaxの通信に成功した場合
+
+            //連想配列の長さを得る Object.keysメソッド
+            var rest_length = Object.keys(data.rest).length;
+
+            var row_data="";
+            for(var i=0; i < rest_length; i++){
+                row_data += "<tr>";
+                row_data += "<td>" + data.rest[i].name + "</td>";
+                row_data += "<td>" + data.rest[i].address + "</td>";
+                row_data += "<td>" + data.rest[i].tel + "</td>";
+                row_data += "<td>" + data.rest[i].access.line + " " + data.rest[i].access.station + data.rest[i].access.walk + "分</td>";
+                row_data += "<td>" + '<input type="submit" value="場所" class="place_basyo" lat="'+ data.rest[i].latitude+'" lng="'+ data.rest[i].longitude +'" id="'+ data.rest[i].id +'">'+ "</td>";
+                row_data += "</tr>";
+            }
+            $('#kekka').append(row_data);
+
+
+        }).fail(function(data){ //ajaxの通信に失敗した場合
+            alert("データの受信に失敗しました");
+        });
+
+    }
+
+    function search_restrant_shop(id){
+        $.ajax({
+            url: 'http://javascriptajax.azurewebsites.net/ikeda/get_restrant_shop.php?id=' + id ,
+            type:'GET',
+            dataType:'json'
+                
+        }).done(function(data){ //ajaxの通信に成功した場合
+
+            var row_data="";
+
+            row_data += "<tr>";
+            if(data.rest.name != null){
+                row_data += "<td>" + data.rest.name + "</td>";
+            }
+
+            console.log(data.rest.image_url.shop_image1);
+            console.log(data.rest.image_url.shop_image2);
+
+            console.log(data.rest.image_url.shop_image1.length);
+            console.log(data.rest.image_url.shop_image2.length);
+
+            //画像が存在するか判断
+            if(data.rest.image_url.shop_image1!=null && data.rest.image_url.shop_image2!=null){
+                row_data += "<td>" + '<img src="' + data.rest.image_url.shop_image1 + '">' + '<img src="' + data.rest.image_url.shop_image2 + '">' + "</td>";
+            }else if(data.rest.image_url.shop_image1!=null && data.rest.image_url.shop_image2==null){
+                row_data += "<td>" + '<img src="' + data.rest.image_url.shop_image1 + '">' + "</td>";
+            }else if(data.rest.image_url.shop_image2!=null && data.rest.image_url.shop_image1==null){
+                row_data += "<td>" + '<img src="' + data.rest.image_url.shop_image2 + '">' + "</td>";
+            }
+
+//              if(data.rest.image_url.shop_image1!=null && data.rest.image_url.shop_image2==null){
+
+            //  if(data.rest.image_url.shop_image1.length>0 && data.rest.image_url.shop_image2.length=='undefined'){
+                // row_data += "<td>" + '<img src="' + data.rest.image_url.shop_image1 + '">' + "</td>";
+            // }
+
+            if(data.rest.tel != null){
+                row_data += "<td>" + data.rest.tel + "</td>";
+            }
+            if(data.rest.url_mobile != null){
+                row_data += "<td>" + "<a href=" + data.rest.url_mobile  + ">" + "紹介サイトへ" + "</a>" + "</td>";
+            }
+            if(data.rest.coupon_url.mobile != null){
+                row_data += "<td>" + "<a href=" + data.rest.coupon_url.mobile  + ">" + "クーポンurl" + "</a>" + "</td>";
+            }
+            row_data += "</tr>";
+
+            $('#syoukai').html("");
+
+            $('#syoukai').append(row_data);
+
+
+        }).fail(function(data){ //ajaxの通信に失敗した場合
+            alert("データの受信に失敗しました");
+        });
+
+    }
+
+    function showMap(lat,lon){
+        var latlng = new google.maps.LatLng(lat,lon);  //表示する地図の座標を指定する
+		var opts = {
+			zoom: 18, //倍率
+			center: latlng,	//地図の中心座標
+			mapTypeId: google.maps.MapTypeId.ROAD,  		//マップタイプの指定
+			// mapTypeId: google.maps.MapTypeId.HYBRID,  		//マップタイプの指定
+			//mapTypeId: google.maps.MapTypeId.SATELLITE,  	//マップタイプの指定
+			//mapTypeId: google.maps.MapTypeId.TERRAIN,  		//マップタイプの指定
+			mapTypeControl:false
+        };
+        //地図を表示する
+      	var map = new google.maps.Map($("#map_canvas").get(0), opts);
+
+        var directionsDisplay = new google.maps.DirectionsRenderer;
+        var directionsService = new google.maps.DirectionsService;
+
+        directionsDisplay.setMap(map);
+
+        // 現在地を取得
+        navigator.geolocation.getCurrentPosition(
+            function( position )
+		{
+			// 取得したデータの整理
+			var data = position.coords ;
+
+			// データの整理
+			var locationlat = data.latitude ;
+			var locationlng = data.longitude ;
+
+            calculateAndDisplayRoute(directionsService, directionsDisplay,lat,lon,locationlat,locationlng);
+            document.getElementById('mode').addEventListener('change', function() {
+                calculateAndDisplayRoute(directionsService, directionsDisplay);
+            });
+        })
+        //ここまででルートを出す
+    }
+
+    function calculateAndDisplayRoute(directionsService, directionsDisplay,lat,lon,locationlat,locationlng) {
+
+    var selectedMode = document.getElementById('mode').value;
+    directionsService.route({
+      origin: {lat: parseFloat(locationlat), lng: parseFloat(locationlng)},//現在地
+      destination: {lat: parseFloat(lat), lng: parseFloat(lon)},//目的地
+    //parseFloatで数値化する
+      travelMode: google.maps.TravelMode[selectedMode]
+    }, function(response, status) {
+      if (status == 'OK') {
+        directionsDisplay.setDirections(response);
+      } else {
+        window.alert('以下の原因のため経路要求が失敗しました。エラーコード ' + status);
+      }
+    });
+  }
+
+    $(function(){	//←document.ready
+
+        //■ページを読み込んだらすぐ行う
+        //エリアを表示する
+        set_pref_list();
+            
+        //業態を表示する
+        set_category_l_list();
+
+        //■イベントの割り当て
+        $('#pref').on('change', function(){
+            set_area_list();
+        })
+
+        $('#search').on('click',function(){
+
+            //レストラン検索を行う
+            var pref_code = $('#pref').find('option:selected').attr('pref_code');
+            var category_l_code = $('#category_l').find('option:selected').attr('category_l_code');
+            var areacode_m = $('#area_m').find('option:selected').attr('areacode_m');
+            search_restrant(pref_code, areacode_m, category_l_code);
+
+
+        })
+
+        $(document).on("click","input.place_basyo",function(){
+            //店舗詳細データ表示処理呼び出し
+            search_restrant_shop(
+                    $(this).attr('id'),
+                    )
+            //地図表示処理呼び出し
+            showMap($(this).attr('lat'),
+                    $(this).attr('lng')
+                    )
+        });
+
+    });            
+    
+    </script>
+</head>
+<body>
+<h1>グルメ情報検索</h1>
+<select id="pref"></select>
+<select id="area_m"></select>
+<select id="category_l"></select>
+
+<input type="button" id="search" value="検索">
+
+<h3>ここに検索結果を表示します</h3>
+<table id="kekka" border="1"></table>
+<table id="syoukai"></table>
+
+<a>移動方法(先に選択)</a>
+<div id="floating-panel">
+    <select id="mode">
+        <option value="DRIVING">車</option>
+        <option value="WALKING">徒歩</option>
+        <option value="BICYCLING">自転車</option>
+    </select>
+</div>
+
+<div id="map_canvas" style="width:350px; height:550px"></div>
+
+</body>
+</html>
